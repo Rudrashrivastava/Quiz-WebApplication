@@ -1,0 +1,1182 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>QuizMaster Pro</title>
+    <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Inter', sans-serif;
+        }
+        /* Custom styles for animations and refined elements */
+        .card {
+            transition: all 0.3s ease-in-out;
+        }
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 10px 20px rgba(0, 0, 0, 0.1);
+        }
+        .btn-primary {
+            transition: background-color 0.2s ease-in-out, transform 0.1s ease-in-out;
+        }
+        .btn-primary:active {
+            transform: translateY(1px);
+        }
+        .modal-overlay {
+            background-color: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(5px);
+        }
+        .login-button-disabled {
+            opacity: 0.6;
+            cursor: not-allowed;
+        }
+        /* Chatbot specific styles */
+        #chatbotFloatingBtn {
+            position: fixed;
+            bottom: 20px;
+            right: 20px;
+            background-color: #3B82F6; /* Blue-600 */
+            color: white;
+            border-radius: 50%;
+            width: 60px;
+            height: 60px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 2rem;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
+            cursor: pointer;
+            z-index: 1000;
+            transition: transform 0.2s ease-in-out;
+        }
+        #chatbotFloatingBtn:hover {
+            transform: scale(1.1);
+        }
+        #chatbotModal {
+            position: fixed;
+            bottom: 90px; /* Above the floating button */
+            right: 20px;
+            width: 380px;
+            height: 500px;
+            background-color: white;
+            border-radius: 15px;
+            box-shadow: 0 8px 24px rgba(0, 0, 0, 0.3);
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            z-index: 999;
+            transform: translateY(20px) scale(0.95);
+            opacity: 0;
+            transition: transform 0.3s ease-out, opacity 0.3s ease-out;
+            pointer-events: none; /* Make it unclickable when hidden */
+        }
+        #chatbotModal.open {
+            transform: translateY(0) scale(1);
+            opacity: 1;
+            pointer-events: auto;
+        }
+        #chatHeader {
+            background-color: #3B82F6; /* Blue-600 */
+            color: white;
+            padding: 1rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-weight: bold;
+            border-top-left-radius: 15px;
+            border-top-right-radius: 15px;
+        }
+        #chatMessages {
+            flex-grow: 1;
+            padding: 1rem;
+            overflow-y: auto;
+            background-color: #F8FAFC; /* Gray-50 */
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+        }
+        .message-bubble {
+            max-width: 80%;
+            padding: 0.75rem 1rem;
+            border-radius: 15px;
+            word-wrap: break-word;
+            font-size: 0.95rem;
+        }
+        .user-message {
+            background-color: #BFDBFE; /* Blue-200 */
+            align-self: flex-end;
+            border-bottom-right-radius: 5px;
+        }
+        .chatbot-message {
+            background-color: #E0E7FF; /* Indigo-100 */
+            align-self: flex-start;
+            border-bottom-left-radius: 5px;
+        }
+        #chatInputContainer {
+            display: flex;
+            padding: 1rem;
+            background-color: #E2E8F0; /* Gray-200 */
+            border-bottom-left-radius: 15px;
+            border-bottom-right-radius: 15px;
+            gap: 8px;
+        }
+        #chatInput {
+            flex-grow: 1;
+            padding: 0.75rem;
+            border-radius: 20px;
+            border: 1px solid #CBD5E0; /* Gray-300 */
+            font-size: 0.95rem;
+            outline: none;
+        }
+        #sendChatBtn {
+            background-color: #3B82F6; /* Blue-600 */
+            color: white;
+            padding: 0.75rem 1rem;
+            border-radius: 20px;
+            cursor: pointer;
+            transition: background-color 0.2s;
+        }
+        #sendChatBtn:hover {
+            background-color: #2563EB; /* Blue-700 */
+        }
+    </style>
+</head>
+<body class="bg-gradient-to-br from-blue-50 to-indigo-100 min-h-screen flex flex-col text-gray-800">
+    <header class="bg-gradient-to-r from-blue-700 to-blue-900 text-white shadow-lg">
+        <div class="container mx-auto px-4 py-4 flex justify-between items-center rounded-b-xl">
+            <h1 class="text-3xl font-extrabold tracking-tight">QuizMaster Pro</h1>
+            <button id="logoutBtn" class="hidden bg-red-600 hover:bg-red-700 active:bg-red-800 px-6 py-2 rounded-full text-lg font-semibold transition transform hover:scale-105 shadow-md">
+                Logout
+            </button>
+        </div>
+    </header>
+
+    <main class="flex-grow container mx-auto px-4 py-8 flex items-center justify-center">
+        <div id="roleSelectionView" class="max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-center text-gray-900 mb-10">Select Your Role</h2>
+            <div class="grid grid-cols-1 gap-6">
+                <button id="studentRoleBtn" class="btn-primary bg-green-600 hover:bg-green-700 text-white py-4 px-6 rounded-xl text-xl font-medium shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-green-300">
+                    Student
+                </button>
+                <button id="teacherRoleBtn" class="btn-primary bg-blue-600 hover:bg-blue-700 text-white py-4 px-6 rounded-xl text-xl font-medium shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-blue-300">
+                    Teacher
+                </button>
+            </div>
+        </div>
+
+        <div id="loginView" class="hidden max-w-md w-full bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-center text-gray-900 mb-10" id="loginTitle">Login</h2>
+            <div id="studentLoginForm" class="hidden flex flex-col space-y-5">
+                <input type="text" id="rollNumber" placeholder="Roll Number (e.g., 0905CS231001)" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <input type="password" id="studentPassword" placeholder="Password" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <button id="studentLoginBtn" class="btn-primary bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl text-lg font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300">
+                    Login as Student
+                </button>
+                <button id="backToRoleBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-xl text-lg font-medium transition shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-gray-200">
+                    Back to Role Selection
+                </button>
+            </div>
+            <div id="teacherLoginForm" class="hidden flex flex-col space-y-5">
+                <input type="text" id="teacherSubjectName" placeholder="Subject Name (e.g., maths)" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <input type="password" id="teacherPassword" placeholder="Password" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <button id="teacherLoginBtn" class="btn-primary bg-blue-600 hover:bg-blue-700 text-white py-3 px-4 rounded-xl text-lg font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                    Login as Teacher
+                </button>
+                <button id="backToRoleBtnTeacher" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-xl text-lg font-medium transition shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-gray-200">
+                    Back to Role Selection
+                </button>
+            </div>
+        </div>
+
+        <div id="studentDashboard" class="hidden w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8">Select a Subject to Quiz</h2>
+            <div id="studentSubjectList" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                <div id="noSubjectsMessage" class="hidden col-span-full text-center text-gray-600 text-lg py-10">
+                    No quizzes available yet. Please check back later!
+                </div>
+            </div>
+        </div>
+        
+        <div id="studentSubjectDetailPage" class="hidden w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">Subject Details</h2>
+            <p class="text-xl text-gray-700 mb-4">Student Roll Number: <span id="studentRollNumberDisplay" class="font-semibold text-blue-700"></span></p>
+            <p class="text-xl text-gray-700 mb-2">Subject: <span id="detailSubjectName" class="font-semibold text-blue-700"></span></p>
+            <p class="text-xl text-gray-700 mb-6">Faculty: <span id="detailFacultyName" class="font-semibold text-blue-700"></span></p>
+            
+            <button id="startQuizFromDetailsBtn" class="btn-primary bg-green-600 hover:bg-green-700 text-white py-3 px-6 rounded-xl text-lg font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300 w-full mb-4">
+                Start Quiz
+            </button>
+            <button id="backToSubjectsBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-6 rounded-xl text-lg font-medium transition shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-gray-200 w-full">
+                Back to Subjects
+            </button>
+        </div>
+
+        <div id="quizView" class="hidden w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-2xl font-bold mb-6 text-gray-900" id="quizSubjectTitle"></h2>
+            <div id="timer" class="text-red-600 font-bold text-xl mb-6">Time Left: <span id="timeLeft">60</span> seconds</div>
+            <div id="questionContainer" class="mb-8 p-4 bg-gray-50 rounded-xl border border-gray-200">
+                </div>
+            <div class="flex justify-between items-center gap-4">
+                <button id="prevQuestionBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-6 rounded-xl transition text-lg font-medium shadow-sm hover:shadow-md hidden focus:outline-none focus:ring-4 focus:ring-gray-200">
+                    Previous
+                </button>
+                <button id="nextQuestionBtn" class="btn-primary bg-blue-600 hover:bg-blue-700 text-white py-3 px-8 rounded-xl transition text-lg font-medium ml-auto shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                    Next
+                </button>
+            </div>
+        </div>
+        
+        <div id="quizResultsView" class="hidden w-full max-w-xl bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6 text-center">Quiz Results</h2>
+            <p class="text-xl text-center mb-6">You scored <span id="finalScore" class="font-extrabold text-blue-700"></span> out of <span id="totalQuestions" class="font-extrabold text-blue-700"></span>.</p>
+            <div class="max-h-96 overflow-y-auto pr-4">
+                <ul id="resultsList" class="space-y-4">
+                    </ul>
+            </div>
+            <button id="backToProfileBtn" class="btn-primary mt-8 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl text-lg font-medium transition w-full shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                Back to Subjects
+            </button>
+        </div>
+        
+        <div id="teacherDashboard" class="hidden w-full max-w-4xl bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8">Teacher Dashboard (<span id="teacherDashboardSubject"></span>)</h2>
+            <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+                <button id="addQuestionBtn" class="btn-primary bg-purple-600 hover:bg-purple-700 text-white py-4 px-6 rounded-xl text-xl font-medium shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-purple-300">
+                    Add New Question
+                </button>
+                <button id="viewStudentsResultsBtn" class="btn-primary bg-indigo-600 hover:bg-indigo-700 text-white py-4 px-6 rounded-xl text-xl font-medium shadow-lg hover:shadow-xl focus:outline-none focus:ring-4 focus:ring-indigo-300">
+                    View Student Results
+                </button>
+            </div>
+            <div id="teacherCurrentQuestions" class="mt-8">
+                <h3 class="text-2xl font-bold text-gray-900 mb-4">Your Current Questions</h3>
+                <div id="teacherQuestionsList" class="space-y-4 max-h-80 overflow-y-auto pr-4">
+                    <p id="noTeacherQuestions" class="text-gray-600 text-lg text-center hidden py-4">No questions added for this subject yet.</p>
+                </div>
+            </div>
+        </div>
+
+        <div id="studentResultsView" class="hidden w-full max-w-3xl bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-gray-900 mb-6">Student Quiz Results for <span id="resultsSubjectDisplay"></span></h2>
+            <div id="studentResultsList" class="max-h-96 overflow-y-auto pr-4">
+                <p id="noStudentResultsMessage" class="hidden text-gray-600 text-lg text-center py-10">No students have taken quizzes for this subject yet.</p>
+            </div>
+            <button id="backToTeacherDashboardFromResultsBtn" class="btn-primary mt-8 bg-blue-600 hover:bg-blue-700 text-white py-3 px-6 rounded-xl text-lg font-medium transition w-full shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                Back to Dashboard
+            </button>
+        </div>
+        
+        <div id="addQuestionView" class="hidden w-full max-w-2xl bg-white rounded-2xl shadow-xl overflow-hidden p-8 card">
+            <h2 class="text-3xl font-bold text-gray-900 mb-8 text-center">Add New Question for <span id="addQuestionSubjectTitle"></span></h2>
+            <div class="flex flex-col space-y-5">
+                <textarea id="questionText" placeholder="Enter question text" rows="3" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm"></textarea>
+                
+                <label for="questionSemester" class="text-lg font-semibold text-gray-700">Select Semester:</label>
+                <select id="questionSemester" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                    <option value="">-- Select Semester --</option>
+                    <option value="Semester 1">Semester 1</option>
+                    <option value="Semester 2">Semester 2</option>
+                    <option value="Semester 3">Semester 3</option>
+                    <option value="Semester 4">Semester 4</option>
+                    <option value="Semester 5">Semester 5</option>
+                    <option value="Semester 6">Semester 6</option>
+                    <option value="Semester 7">Semester 7</option>
+                    <option value="Semester 8">Semester 8</option>
+                </select>
+
+                <input type="text" id="option1" placeholder="Option 1" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <input type="text" id="option2" placeholder="Option 2" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <input type="text" id="option3" placeholder="Option 3" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                <input type="text" id="option4" placeholder="Option 4" class="border border-gray-300 rounded-lg p-3 text-lg focus:ring-blue-500 focus:border-blue-500 shadow-sm">
+                
+                <div class="text-lg font-semibold text-gray-700">Correct Answer:</div>
+                <div class="grid grid-cols-2 gap-4">
+                    <label class="inline-flex items-center text-lg">
+                        <input type="radio" name="correctOption" value="0" class="form-radio text-blue-600 h-5 w-5 mr-2"> Option 1
+                    </label>
+                    <label class="inline-flex items-center text-lg">
+                        <input type="radio" name="correctOption" value="1" class="form-radio text-blue-600 h-5 w-5 mr-2"> Option 2
+                    </label>
+                    <label class="inline-flex items-center text-lg">
+                        <input type="radio" name="correctOption" value="2" class="form-radio text-blue-600 h-5 w-5 mr-2"> Option 3
+                    </label>
+                    <label class="inline-flex items-center text-lg">
+                        <input type="radio" name="correctOption" value="3" class="form-radio text-blue-600 h-5 w-5 mr-2"> Option 4
+                    </label>
+                </div>
+
+                <button id="submitQuestionBtn" class="btn-primary bg-green-600 hover:bg-green-700 text-white py-3 px-4 rounded-xl text-lg font-medium shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-green-300">
+                    Add Question
+                </button>
+                <button id="backToTeacherDashboardBtn" class="bg-gray-300 hover:bg-gray-400 text-gray-800 py-3 px-4 rounded-xl text-lg font-medium transition shadow-sm hover:shadow-md focus:outline-none focus:ring-4 focus:ring-gray-200">
+                    Back to Dashboard
+                </button>
+            </div>
+        </div>
+    </main>
+    
+    <div id="messageModal" class="hidden fixed inset-0 flex items-center justify-center p-4 z-50 modal-overlay">
+        <div class="bg-white rounded-xl shadow-2xl p-8 max-w-sm w-full transform transition-all duration-300 scale-95 opacity-0" id="messageModalContent">
+            <h3 id="messageModalTitle" class="text-2xl font-bold mb-4 text-gray-900"></h3>
+            <p id="messageModalBody" class="text-lg text-gray-700 mb-6"></p>
+            <button id="messageModalCloseBtn" class="btn-primary bg-blue-600 hover:bg-blue-700 text-white py-2 px-5 rounded-xl text-lg font-medium w-full shadow-md hover:shadow-lg focus:outline-none focus:ring-4 focus:ring-blue-300">
+                OK
+            </button>
+        </div>
+    </div>
+
+    <div id="chatbotFloatingBtn">
+        💬
+    </div>
+
+    <div id="chatbotModal">
+        <div id="chatHeader">
+            <span>Quiz Assistant</span>
+            <div class="flex items-center space-x-2">
+                <label for="voiceToggle" class="text-sm font-normal">Voice:</label>
+                <input type="checkbox" id="voiceToggle" class="form-checkbox h-4 w-4 text-blue-600 rounded">
+                <button id="closeChatBtn" class="text-white hover:text-gray-200 focus:outline-none text-2xl leading-none">&times;</button>
+            </div>
+        </div>
+        <div id="chatMessages">
+            <div class="chatbot-message message-bubble">
+                Hi there! I'm your Quiz Assistant. How can I help you with this application? Ask me questions like "How to log in as a student?" or "How to add a question?".
+            </div>
+        </div>
+        <div id="chatInputContainer">
+            <input type="text" id="chatInput" placeholder="Ask me anything..." class="flex-grow">
+            <button id="sendChatBtn">Send</button>
+        </div>
+    </div>
+
+
+    <footer class="bg-gray-800 text-white py-4 mt-8">
+        <div class="container mx-auto px-4 text-center">
+            <p>&copy; 2023 QuizMaster Pro. All rights reserved.</p>
+        </div>
+    </footer>
+
+    <script>
+        // Global variables for in-memory data
+        // Users: { id: { password: "...", role: "...", subjectName?: "...", faculty?: "...", name?: "..." } }
+        const users = {};
+        // Quiz Questions: { semester: { subject: [{ questionData }] } }
+        let quizQuestions = {}; // This will hold all questions dynamically
+        // Quiz Results: Array of { studentRollNumber, studentName, subject, semester, score, totalQuestions, timestamp }
+        let allQuizAttempts = [];
+
+        // --- Global State Variables ---
+        let currentStudentRollNumber = null; // To store the logged-in student's roll number
+        let currentUserRole = null;
+        let currentUserSubject = null; // For teacher
+        let currentQuizSubject = ''; // Stores the subject of the current quiz for students
+        let currentSelectedSemester = null; // To store selected semester for student's quiz
+
+        let currentQuestions = []; // Array of questions for the current quiz
+        let currentQuestionIndex = 0;
+        let timer;
+        let timeLeft = 60; // 1 minute timer per question
+        let score = 0;
+        let selectedAnswers = [];
+
+        // --- Core Application Initialization ---
+        function initializeAppData() {
+            // Populate initial student accounts with names
+            const studentCount = 112;
+            for (let i = 1; i <= studentCount; i++) {
+                const rollNumSuffix = String(i).padStart(3, '0');
+                const rollNumber = `0905CS231${rollNumSuffix}`;
+                const password = `pass${rollNumSuffix}`;
+                const studentName = `Student ${String(i).padStart(3, '0')}`; // Example name
+                users[rollNumber] = { password: password, role: 'student', name: studentName };
+            }
+
+            // Populate initial teacher accounts based on subject name
+            const teacherSubjects = [
+                { name: 'maths', faculty: 'Mr. Patel' },
+                { name: 'english', faculty: 'Mr. Smith' },
+                { name: 'science', faculty: 'Dr. Gupta' },
+                { name: 'hindi', faculty: 'Ms. Sharma' },
+                { name: 'sst', faculty: 'Ms. Roy' }
+            ];
+
+            teacherSubjects.forEach(teacher => {
+                users[`${teacher.name}_teacher`] = {
+                    password: `${teacher.name}pass`, // Password derived from subject name
+                    role: 'teacher',
+                    subjectName: teacher.name,
+                    faculty: teacher.faculty
+                };
+            });
+
+
+            // Add some sample quiz questions with semesters
+            addSampleQuestion(
+                "Semester 1", "maths", "What is 2 + 2?",
+                ["3", "4", "5", "6"], 1
+            );
+            addSampleQuestion(
+                "Semester 1", "english", "What is the capital of England?",
+                ["Paris", "Berlin", "London", "Rome"], 2
+            );
+            addSampleQuestion(
+                "Semester 2", "science", "What is the chemical symbol for Oxygen?",
+                ["O", "Ox", "O2", "Oz"], 0
+            );
+            addSampleQuestion(
+                "Semester 1", "maths", "Solve for x: x + 5 = 10",
+                ["3", "4", "5", "6"], 2
+            );
+            addSampleQuestion(
+                "Semester 3", "hindi", "हिंदी में 'नमस्ते' का अर्थ क्या है?",
+                ["Goodbye", "Hello", "Thank You", "Please"], 1
+            );
+            addSampleQuestion(
+                "Semester 4", "sst", "Who wrote the Indian National Anthem?",
+                ["Mahatma Gandhi", "Jawaharlal Nehru", "Rabindranath Tagore", "Sardar Patel"], 2
+            );
+
+            console.log("Application data initialized.");
+            console.log("Initial quizQuestions data:", quizQuestions); // Log the initial data
+        }
+
+        // Helper to add questions to our in-memory structure
+        function addSampleQuestion(semester, subject, questionText, options, correctAnswerIndex) {
+            if (!quizQuestions[semester]) {
+                quizQuestions[semester] = {};
+            }
+            if (!quizQuestions[semester][subject]) {
+                quizQuestions[semester][subject] = [];
+            }
+            quizQuestions[semester][subject].push({
+                questionText,
+                options,
+                correctAnswerIndex,
+                semester: semester, // Store semester with question for teachers
+                subject: subject, // Store subject with question for teachers
+                id: Date.now().toString() + Math.random().toString(36).substring(2, 8) // Simple unique ID
+            });
+        }
+
+
+        // --- DOM Elements ---
+        const roleSelectionView = document.getElementById('roleSelectionView');
+        const loginView = document.getElementById('loginView');
+        const studentDashboard = document.getElementById('studentDashboard');
+        const quizView = document.getElementById('quizView');
+        const quizResultsView = document.getElementById('quizResultsView');
+        const teacherDashboard = document.getElementById('teacherDashboard');
+        const addQuestionView = document.getElementById('addQuestionView');
+        const studentResultsView = document.getElementById('studentResultsView'); // New view for teacher to see student results
+        
+        // Login & Role Selection Buttons/Inputs
+        const studentRoleBtn = document.getElementById('studentRoleBtn');
+        const teacherRoleBtn = document.getElementById('teacherRoleBtn');
+        const studentLoginForm = document.getElementById('studentLoginForm');
+        const teacherLoginForm = document.getElementById('teacherLoginForm');
+        const loginTitle = document.getElementById('loginTitle');
+        const studentLoginBtn = document.getElementById('studentLoginBtn');
+        const teacherLoginBtn = document.getElementById('teacherLoginBtn');
+        const rollNumberInput = document.getElementById('rollNumber');
+        const studentPasswordInput = document.getElementById('studentPassword');
+        const teacherSubjectNameInput = document.getElementById('teacherSubjectName');
+        const teacherPasswordInput = document.getElementById('teacherPassword');
+        const backToRoleBtn = document.getElementById('backToRoleBtn');
+        const backToRoleBtnTeacher = document.getElementById('backToRoleBtnTeacher');
+
+        // Student Dashboard elements
+        const studentSubjectList = document.getElementById('studentSubjectList');
+        const noSubjectsMessage = document.getElementById('noSubjectsMessage');
+        
+        // Student Subject Detail Page elements (repurposed from 'subjectDetails')
+        const studentSubjectDetailPage = document.getElementById('studentSubjectDetailPage'); // New ID for clarity
+        const studentRollNumberDisplay = document.getElementById('studentRollNumberDisplay'); // New element to display roll number
+        const detailSubjectName = document.getElementById('detailSubjectName');
+        const detailFacultyName = document.getElementById('detailFacultyName');
+        const startQuizFromDetailsBtn = document.getElementById('startQuizFromDetailsBtn'); // Renamed
+        const backToSubjectsBtn = document.getElementById('backToSubjectsBtn'); // New button
+
+        // Quiz View elements
+        const quizSubjectTitle = document.getElementById('quizSubjectTitle');
+        const timerDisplay = document.getElementById('timeLeft');
+        const questionContainer = document.getElementById('questionContainer');
+        const nextQuestionBtn = document.getElementById('nextQuestionBtn');
+        const prevQuestionBtn = document.getElementById('prevQuestionBtn');
+        
+        // Quiz Results View elements
+        const finalScoreDisplay = document.getElementById('finalScore');
+        const totalQuestionsDisplay = document.getElementById('totalQuestions');
+        const resultsList = document.getElementById('resultsList');
+        const backToProfileBtn = document.getElementById('backToProfileBtn'); // Leads to student subject list
+
+        // Teacher Dashboard elements
+        const teacherDashboardSubject = document.getElementById('teacherDashboardSubject');
+        const addQuestionBtn = document.getElementById('addQuestionBtn');
+        const viewStudentsResultsBtn = document.getElementById('viewStudentsResultsBtn'); // Target for teacher to see results
+        const teacherQuestionsList = document.getElementById('teacherQuestionsList');
+        const noTeacherQuestions = document.getElementById('noTeacherQuestions');
+
+        // Student Results View for Teachers elements
+        const resultsSubjectDisplay = document.getElementById('resultsSubjectDisplay');
+        const studentResultsList = document.getElementById('studentResultsList');
+        const noStudentResultsMessage = document.getElementById('noStudentResultsMessage');
+        const backToTeacherDashboardFromResultsBtn = document.getElementById('backToTeacherDashboardFromResultsBtn');
+
+        // Add Question elements
+        const addQuestionSubjectTitle = document.getElementById('addQuestionSubjectTitle');
+        const questionTextInput = document.getElementById('questionText');
+        const questionSemesterSelect = document.getElementById('questionSemester'); // Semester select for teacher
+        const option1Input = document.getElementById('option1');
+        const option2Input = document.getElementById('option2');
+        const option3Input = document.getElementById('option3');
+        const option4Input = document.getElementById('option4');
+        const correctOptionRadios = document.querySelectorAll('input[name="correctOption"]');
+        const submitQuestionBtn = document.getElementById('submitQuestionBtn');
+        const backToTeacherDashboardBtn = document.getElementById('backToTeacherDashboardBtn');
+
+        // Modal Elements
+        const messageModal = document.getElementById('messageModal');
+        const messageModalContent = document.getElementById('messageModalContent');
+        const messageModalTitle = document.getElementById('messageModalTitle');
+        const messageModalBody = document.getElementById('messageModalBody');
+        const messageModalCloseBtn = document.getElementById('messageModalCloseBtn');
+
+        const logoutBtn = document.getElementById('logoutBtn');
+
+        // Chatbot elements
+        const chatbotFloatingBtn = document.getElementById('chatbotFloatingBtn');
+        const chatbotModal = document.getElementById('chatbotModal');
+        const closeChatBtn = document.getElementById('closeChatBtn');
+        const chatMessages = document.getElementById('chatMessages');
+        const chatInput = document.getElementById('chatInput');
+        const sendChatBtn = document.getElementById('sendChatBtn');
+        const voiceToggle = document.getElementById('voiceToggle');
+
+        // --- View Management Functions ---
+        function hideAllViews() {
+            roleSelectionView.classList.add('hidden');
+            loginView.classList.add('hidden');
+            studentDashboard.classList.add('hidden');
+            studentSubjectDetailPage.classList.add('hidden');
+            quizView.classList.add('hidden');
+            quizResultsView.classList.add('hidden');
+            teacherDashboard.classList.add('hidden');
+            addQuestionView.classList.add('hidden');
+            studentResultsView.classList.add('hidden');
+            logoutBtn.classList.add('hidden');
+        }
+
+        function showView(viewElement) {
+            hideAllViews();
+            viewElement.classList.remove('hidden');
+            // If it's not the role selection or login, show logout
+            if (viewElement !== roleSelectionView && viewElement !== loginView) {
+                logoutBtn.classList.remove('hidden');
+            } else {
+                logoutBtn.classList.add('hidden');
+            }
+        }
+
+        function showMessageModal(title, message) {
+            messageModalTitle.textContent = title;
+            messageModalBody.textContent = message;
+            messageModal.classList.remove('hidden');
+            setTimeout(() => {
+                messageModalContent.classList.remove('scale-95', 'opacity-0');
+                messageModalContent.classList.add('scale-100', 'opacity-100');
+            }, 50); // Small delay for animation
+        }
+
+        function hideMessageModal() {
+            messageModalContent.classList.remove('scale-100', 'opacity-100');
+            messageModalContent.classList.add('scale-95', 'opacity-0');
+            messageModal.addEventListener('transitionend', function handler() {
+                messageModal.classList.add('hidden');
+                messageModal.removeEventListener('transitionend', handler);
+            });
+        }
+
+        // --- Authentication ---
+        studentRoleBtn.addEventListener('click', () => {
+            showView(loginView);
+            loginTitle.textContent = 'Student Login';
+            studentLoginForm.classList.remove('hidden');
+            teacherLoginForm.classList.add('hidden');
+            rollNumberInput.value = '';
+            studentPasswordInput.value = '';
+            checkStudentLoginInputs(); // Initial check
+        });
+
+        teacherRoleBtn.addEventListener('click', () => {
+            showView(loginView);
+            loginTitle.textContent = 'Teacher Login';
+            teacherLoginForm.classList.remove('hidden');
+            studentLoginForm.classList.add('hidden');
+            teacherSubjectNameInput.value = '';
+            teacherPasswordInput.value = '';
+            checkTeacherLoginInputs(); // Initial check
+        });
+
+        backToRoleBtn.addEventListener('click', () => showView(roleSelectionView));
+        backToRoleBtnTeacher.addEventListener('click', () => showView(roleSelectionView));
+
+        rollNumberInput.addEventListener('input', checkStudentLoginInputs);
+        studentPasswordInput.addEventListener('input', checkStudentLoginInputs);
+
+        function checkStudentLoginInputs() {
+            const rollNum = rollNumberInput.value.trim();
+            const password = studentPasswordInput.value.trim();
+            if (rollNum && password) {
+                studentLoginBtn.classList.remove('login-button-disabled');
+                studentLoginBtn.disabled = false;
+            } else {
+                studentLoginBtn.classList.add('login-button-disabled');
+                studentLoginBtn.disabled = true;
+            }
+        }
+
+        teacherSubjectNameInput.addEventListener('input', checkTeacherLoginInputs);
+        teacherPasswordInput.addEventListener('input', checkTeacherLoginInputs);
+
+        function checkTeacherLoginInputs() {
+            const subjectName = teacherSubjectNameInput.value.trim();
+            const password = teacherPasswordInput.value.trim();
+            if (subjectName && password) {
+                teacherLoginBtn.classList.remove('login-button-disabled');
+                teacherLoginBtn.disabled = false;
+            } else {
+                teacherLoginBtn.classList.add('login-button-disabled');
+                teacherLoginBtn.disabled = true;
+            }
+        }
+
+        studentLoginBtn.addEventListener('click', () => {
+            const rollNum = rollNumberInput.value.trim();
+            const password = studentPasswordInput.value.trim();
+
+            if (users[rollNum] && users[rollNum].role === 'student' && users[rollNum].password === password) {
+                currentStudentRollNumber = rollNum;
+                currentUserRole = 'student';
+                showMessageModal('Success', `Welcome, ${users[rollNum].name}!`);
+                hideMessageModal(); // Close the success modal
+                showStudentDashboard();
+            } else {
+                showMessageModal('Login Failed', 'Invalid Roll Number or Password.');
+            }
+        });
+
+        teacherLoginBtn.addEventListener('click', () => {
+            const subjectName = teacherSubjectNameInput.value.trim().toLowerCase();
+            const password = teacherPasswordInput.value.trim();
+            const teacherId = `${subjectName}_teacher`;
+
+            if (users[teacherId] && users[teacherId].role === 'teacher' && users[teacherId].password === password) {
+                currentUserRole = 'teacher';
+                currentUserSubject = subjectName;
+                showMessageModal('Success', `Welcome, ${users[teacherId].faculty} (${users[teacherId].subjectName})!`);
+                hideMessageModal(); // Close the success modal
+                showTeacherDashboard();
+            } else {
+                showMessageModal('Login Failed', 'Invalid Subject Name or Password.');
+            }
+        });
+
+        logoutBtn.addEventListener('click', () => {
+            currentStudentRollNumber = null;
+            currentUserRole = null;
+            currentUserSubject = null;
+            currentQuizSubject = '';
+            currentSelectedSemester = null;
+            currentQuestions = [];
+            currentQuestionIndex = 0;
+            clearInterval(timer);
+            timeLeft = 60;
+            score = 0;
+            selectedAnswers = [];
+            clearLoginFields();
+            showView(roleSelectionView);
+        });
+
+        function clearLoginFields() {
+            rollNumberInput.value = '';
+            studentPasswordInput.value = '';
+            teacherSubjectNameInput.value = '';
+            teacherPasswordInput.value = '';
+        }
+
+        // --- Student Flow ---
+        function showStudentDashboard() {
+            showView(studentDashboard);
+            renderStudentSubjectList();
+        }
+
+        function renderStudentSubjectList() {
+            studentSubjectList.innerHTML = '';
+            const availableSubjects = new Set();
+
+            // Collect unique subjects and semesters that have questions
+            for (const semester in quizQuestions) {
+                for (const subject in quizQuestions[semester]) {
+                    if (quizQuestions[semester][subject].length > 0) {
+                        availableSubjects.add(subject);
+                    }
+                }
+            }
+
+            if (availableSubjects.size === 0) {
+                noSubjectsMessage.classList.remove('hidden');
+                return;
+            } else {
+                noSubjectsMessage.classList.add('hidden');
+            }
+
+            availableSubjects.forEach(subject => {
+                const teacher = Object.values(users).find(u => u.role === 'teacher' && u.subjectName === subject);
+                const facultyName = teacher ? teacher.faculty : 'N/A';
+
+                const subjectCard = document.createElement('div');
+                subjectCard.className = 'card bg-white p-6 rounded-xl shadow-md cursor-pointer hover:bg-blue-50 transition transform hover:scale-105';
+                subjectCard.innerHTML = `
+                    <h3 class="text-2xl font-bold text-blue-800 mb-2">${subject.charAt(0).toUpperCase() + subject.slice(1)}</h3>
+                    <p class="text-gray-600">Faculty: ${facultyName}</p>
+                `;
+                subjectCard.addEventListener('click', () => showStudentSubjectDetailPage(subject, facultyName));
+                studentSubjectList.appendChild(subjectCard);
+            });
+        }
+
+        function showStudentSubjectDetailPage(subject, faculty) {
+            currentQuizSubject = subject;
+            studentRollNumberDisplay.textContent = currentStudentRollNumber;
+            detailSubjectName.textContent = subject.charAt(0).toUpperCase() + subject.slice(1);
+            detailFacultyName.textContent = faculty;
+            showView(studentSubjectDetailPage);
+        }
+
+        startQuizFromDetailsBtn.addEventListener('click', () => {
+            startQuiz();
+        });
+
+        backToSubjectsBtn.addEventListener('click', () => {
+            showStudentDashboard();
+        });
+
+
+        function startQuiz() {
+            // Filter questions by selected subject and, if needed, by semester (for a more advanced quiz)
+            // For simplicity, we'll collect all questions for the subject, regardless of semester, unless explicitly chosen by student
+            // To incorporate semester selection for students, you'd add a semester selection step before starting the quiz.
+            currentQuestions = [];
+            for (const semester in quizQuestions) {
+                if (quizQuestions[semester][currentQuizSubject]) {
+                    currentQuestions = currentQuestions.concat(quizQuestions[semester][currentQuizSubject]);
+                }
+            }
+
+            if (currentQuestions.length === 0) {
+                showMessageModal('No Questions', `No questions available for ${currentQuizSubject}. Please check back later.`);
+                // Return to subject list after message
+                setTimeout(showStudentDashboard, 2000); 
+                return;
+            }
+
+            currentQuestionIndex = 0;
+            score = 0;
+            selectedAnswers = new Array(currentQuestions.length).fill(null); // Initialize with null for unanswered
+            timeLeft = 60; // Reset timer for the first question
+            quizSubjectTitle.textContent = `Quiz: ${currentQuizSubject.charAt(0).toUpperCase() + currentQuizSubject.slice(1)}`;
+            showView(quizView);
+            displayQuestion();
+            startTimer();
+        }
+
+        function displayQuestion() {
+            clearInterval(timer); // Clear previous question's timer
+            timeLeft = 60; // Reset time for the new question
+            startTimer(); // Start timer for the new question
+
+            const question = currentQuestions[currentQuestionIndex];
+            if (!question) {
+                showResults();
+                return;
+            }
+
+            questionContainer.innerHTML = `
+                <p class="text-xl font-semibold mb-4 text-gray-800">Question ${currentQuestionIndex + 1}/${currentQuestions.length}:</p>
+                <p class="text-xl mb-6">${question.questionText}</p>
+                <div class="space-y-4">
+                    ${question.options.map((option, index) => `
+                        <label class="block bg-white p-4 rounded-lg shadow-sm border border-gray-200 cursor-pointer hover:bg-blue-50 transition duration-150 ease-in-out">
+                            <input type="radio" name="answer" value="${index}" class="form-radio text-blue-600 h-5 w-5 align-middle mr-3" ${selectedAnswers[currentQuestionIndex] === index ? 'checked' : ''}>
+                            <span class="text-lg text-gray-700 align-middle">${option}</span>
+                        </label>
+                    `).join('')}
+                </div>
+            `;
+
+            document.querySelectorAll('input[name="answer"]').forEach(radio => {
+                radio.addEventListener('change', (event) => {
+                    selectedAnswers[currentQuestionIndex] = parseInt(event.target.value);
+                });
+            });
+
+            // Show/hide navigation buttons
+            prevQuestionBtn.classList.toggle('hidden', currentQuestionIndex === 0);
+            nextQuestionBtn.textContent = currentQuestionIndex === currentQuestions.length - 1 ? 'Submit Quiz' : 'Next';
+        }
+
+        function startTimer() {
+            timerDisplay.textContent = timeLeft;
+            timer = setInterval(() => {
+                timeLeft--;
+                timerDisplay.textContent = timeLeft;
+                if (timeLeft <= 0) {
+                    clearInterval(timer);
+                    // Automatically move to the next question or submit if last
+                    if (currentQuestionIndex < currentQuestions.length - 1) {
+                        currentQuestionIndex++;
+                        displayQuestion();
+                    } else {
+                        showResults();
+                    }
+                }
+            }, 1000);
+        }
+
+        nextQuestionBtn.addEventListener('click', () => {
+            if (currentQuestionIndex < currentQuestions.length - 1) {
+                currentQuestionIndex++;
+                displayQuestion();
+            } else {
+                showResults(); // Last question, submit quiz
+            }
+        });
+
+        prevQuestionBtn.addEventListener('click', () => {
+            if (currentQuestionIndex > 0) {
+                currentQuestionIndex--;
+                displayQuestion();
+            }
+        });
+
+        function showResults() {
+            clearInterval(timer); // Stop the timer
+            score = 0;
+            resultsList.innerHTML = '';
+
+            currentQuestions.forEach((question, index) => {
+                const userAnswer = selectedAnswers[index];
+                const isCorrect = userAnswer !== null && userAnswer === question.correctAnswerIndex;
+                if (isCorrect) {
+                    score++;
+                }
+
+                const listItem = document.createElement('li');
+                listItem.className = `p-4 rounded-lg shadow-sm border ${isCorrect ? 'bg-green-50 border-green-300' : 'bg-red-50 border-red-300'}`;
+                listItem.innerHTML = `
+                    <p class="font-semibold text-gray-900 mb-2">Q${index + 1}: ${question.questionText}</p>
+                    <p class="text-sm">Your Answer: <span class="${isCorrect ? 'text-green-700' : 'text-red-700'} font-medium">
+                        ${userAnswer !== null ? question.options[userAnswer] : 'No Answer'}
+                    </span></p>
+                    <p class="text-sm">Correct Answer: <span class="text-blue-700 font-medium">${question.options[question.correctAnswerIndex]}</span></p>
+                `;
+                resultsList.appendChild(listItem);
+            });
+
+            finalScoreDisplay.textContent = score;
+            totalQuestionsDisplay.textContent = currentQuestions.length;
+
+            // Save the quiz attempt
+            saveQuizAttempt(currentStudentRollNumber, users[currentStudentRollNumber].name, currentQuizSubject, currentSelectedSemester, score, currentQuestions.length);
+
+            showView(quizResultsView);
+        }
+
+        function saveQuizAttempt(rollNumber, name, subject, semester, score, total) {
+            allQuizAttempts.push({
+                studentRollNumber: rollNumber,
+                studentName: name,
+                subject: subject,
+                semester: semester,
+                score: score,
+                totalQuestions: total,
+                timestamp: new Date().toLocaleString()
+            });
+            console.log('Quiz attempt saved:', allQuizAttempts[allQuizAttempts.length - 1]);
+        }
+
+        backToProfileBtn.addEventListener('click', () => {
+            showStudentDashboard();
+        });
+
+        // --- Teacher Flow ---
+        function showTeacherDashboard() {
+            showView(teacherDashboard);
+            teacherDashboardSubject.textContent = currentUserSubject.charAt(0).toUpperCase() + currentUserSubject.slice(1);
+            renderTeacherQuestions();
+        }
+
+        function renderTeacherQuestions() {
+            teacherQuestionsList.innerHTML = '';
+            const questionsForSubject = [];
+            for (const semester in quizQuestions) {
+                if (quizQuestions[semester][currentUserSubject]) {
+                    questionsForSubject.push(...quizQuestions[semester][currentUserSubject]);
+                }
+            }
+
+            if (questionsForSubject.length === 0) {
+                noTeacherQuestions.classList.remove('hidden');
+                return;
+            } else {
+                noTeacherQuestions.classList.add('hidden');
+            }
+
+            questionsForSubject.forEach(q => {
+                const questionElement = document.createElement('div');
+                questionElement.className = 'bg-gray-50 p-4 rounded-lg shadow-sm border border-gray-200 flex justify-between items-center';
+                questionElement.innerHTML = `
+                    <div>
+                        <p class="font-semibold text-gray-800">${q.questionText}</p>
+                        <p class="text-sm text-gray-600">Semester: ${q.semester}</p>
+                        <p class="text-sm text-gray-600">Correct: ${q.options[q.correctAnswerIndex]}</p>
+                    </div>
+                    <button class="delete-question-btn bg-red-500 hover:bg-red-600 text-white px-3 py-1 rounded-md text-sm transition" data-question-id="${q.id}">
+                        Delete
+                    </button>
+                `;
+                teacherQuestionsList.appendChild(questionElement);
+            });
+
+            document.querySelectorAll('.delete-question-btn').forEach(btn => {
+                btn.addEventListener('click', (event) => {
+                    const questionIdToDelete = event.target.dataset.questionId;
+                    deleteQuestion(questionIdToDelete);
+                });
+            });
+        }
+
+        function deleteQuestion(questionId) {
+            let found = false;
+            for (const semester in quizQuestions) {
+                if (quizQuestions[semester][currentUserSubject]) {
+                    const initialLength = quizQuestions[semester][currentUserSubject].length;
+                    quizQuestions[semester][currentUserSubject] = quizQuestions[semester][currentUserSubject].filter(q => q.id !== questionId);
+                    if (quizQuestions[semester][currentUserSubject].length < initialLength) {
+                        found = true;
+                        break; // Question found and deleted
+                    }
+                }
+            }
+            if (found) {
+                showMessageModal('Success', 'Question deleted successfully.');
+                renderTeacherQuestions(); // Re-render the list
+            } else {
+                showMessageModal('Error', 'Question not found.');
+            }
+        }
+
+
+        addQuestionBtn.addEventListener('click', () => {
+            showView(addQuestionView);
+            addQuestionSubjectTitle.textContent = currentUserSubject.charAt(0).toUpperCase() + currentUserSubject.slice(1);
+            clearQuestionForm();
+        });
+
+        submitQuestionBtn.addEventListener('click', () => {
+            const questionText = questionTextInput.value.trim();
+            const semester = questionSemesterSelect.value;
+            const options = [
+                option1Input.value.trim(),
+                option2Input.value.trim(),
+                option3Input.value.trim(),
+                option4Input.value.trim()
+            ];
+            const correctOption = Array.from(correctOptionRadios).find(radio => radio.checked);
+
+            if (!questionText || !semester || options.some(opt => !opt) || !correctOption) {
+                showMessageModal('Input Error', 'Please fill in all fields and select a correct answer.');
+                return;
+            }
+
+            const correctAnswerIndex = parseInt(correctOption.value);
+
+            // Add the new question
+            addSampleQuestion(semester, currentUserSubject, questionText, options, correctAnswerIndex);
+            showMessageModal('Success', 'Question added successfully!');
+            clearQuestionForm();
+            renderTeacherQuestions(); // Update the teacher's question list on the dashboard
+            // Optionally, return to dashboard immediately or after a delay
+            // setTimeout(() => showView(teacherDashboard), 1500);
+        });
+
+        function clearQuestionForm() {
+            questionTextInput.value = '';
+            questionSemesterSelect.value = ''; // Reset semester dropdown
+            option1Input.value = '';
+            option2Input.value = '';
+            option3Input.value = '';
+            option4Input.value = '';
+            correctOptionRadios.forEach(radio => radio.checked = false);
+        }
+
+        backToTeacherDashboardBtn.addEventListener('click', () => {
+            showTeacherDashboard();
+        });
+
+        viewStudentsResultsBtn.addEventListener('click', () => {
+            showStudentResultsForTeacher();
+        });
+
+        function showStudentResultsForTeacher() {
+            showView(studentResultsView);
+            resultsSubjectDisplay.textContent = currentUserSubject.charAt(0).toUpperCase() + currentUserSubject.slice(1);
+            renderStudentResultsList();
+        }
+
+        function renderStudentResultsList() {
+            studentResultsList.innerHTML = '';
+            const resultsForSubject = allQuizAttempts.filter(attempt => attempt.subject === currentUserSubject);
+
+            if (resultsForSubject.length === 0) {
+                noStudentResultsMessage.classList.remove('hidden');
+                return;
+            } else {
+                noStudentResultsMessage.classList.add('hidden');
+            }
+
+            resultsForSubject.sort((a, b) => new Date(b.timestamp) - new Date(a.timestamp)); // Latest first
+
+            resultsForSubject.forEach(result => {
+                const resultItem = document.createElement('div');
+                resultItem.className = 'bg-blue-50 p-4 rounded-lg shadow-sm border border-blue-200';
+                resultItem.innerHTML = `
+                    <p class="font-semibold text-blue-800">Student: ${result.studentName} (${result.studentRollNumber})</p>
+                    <p class="text-gray-700">Subject: ${result.subject.charAt(0).toUpperCase() + result.subject.slice(1)}</p>
+                    <p class="text-gray-700">Semester: ${result.semester || 'N/A'}</p>
+                    <p class="text-gray-700">Score: <span class="font-bold text-lg">${result.score} / ${result.totalQuestions}</span></p>
+                    <p class="text-gray-600 text-sm">Attempted on: ${result.timestamp}</p>
+                `;
+                studentResultsList.appendChild(resultItem);
+            });
+        }
+
+        backToTeacherDashboardFromResultsBtn.addEventListener('click', () => {
+            showTeacherDashboard();
+        });
+
+
+        // --- Chatbot Functionality ---
+        let speechSynth = window.speechSynthesis;
+        let speechEnabled = false;
+
+        chatbotFloatingBtn.addEventListener('click', () => {
+            chatbotModal.classList.toggle('open');
+        });
+
+        closeChatBtn.addEventListener('click', () => {
+            chatbotModal.classList.remove('open');
+            stopSpeech(); // Stop speech when closing the chat
+        });
+
+        voiceToggle.addEventListener('change', (event) => {
+            speechEnabled = event.target.checked;
+            if (!speechEnabled) {
+                stopSpeech();
+            }
+        });
+
+        function addMessageToChat(message, sender) {
+            const messageBubble = document.createElement('div');
+            messageBubble.classList.add('message-bubble', `${sender}-message`);
+            messageBubble.textContent = message;
+            chatMessages.appendChild(messageBubble);
+            chatMessages.scrollTop = chatMessages.scrollHeight; // Scroll to bottom
+        }
+
+        function speak(text) {
+            if (speechEnabled && speechSynth) {
+                stopSpeech(); // Stop any ongoing speech
+                const utterance = new SpeechSynthesisUtterance(text);
+                utterance.lang = 'en-US'; // Set language
+                speechSynth.speak(utterance);
+            }
+        }
+
+        function stopSpeech() {
+            if (speechSynth && speechSynth.speaking) {
+                speechSynth.cancel();
+            }
+        }
+
+        sendChatBtn.addEventListener('click', handleChatInput);
+        chatInput.addEventListener('keypress', (event) => {
+            if (event.key === 'Enter') {
+                handleChatInput();
+            }
+        });
+
+        function handleChatInput() {
+            const message = chatInput.value.trim();
+            if (message === '') return;
+
+            addMessageToChat(message, 'user');
+            chatInput.value = '';
+
+            const response = getChatbotResponse(message.toLowerCase());
+            setTimeout(() => {
+                addMessageToChat(response, 'chatbot');
+                speak(response); // Speak the response
+            }, 500); // Simulate typing delay
+        }
+
+        function getChatbotResponse(query) {
+            if (query.includes('hello') || query.includes('hi')) {
+                return 'Hello! How can I assist you with QuizMaster Pro today?';
+            } else if (query.includes('how to log in as a student')) {
+                return 'To log in as a student, click the "Student" role button on the home page. Then, enter your Roll Number and Password in the student login form and click "Login as Student."';
+            } else if (query.includes('how to log in as a teacher')) {
+                return 'To log in as a teacher, click the "Teacher" role button. Enter your Subject Name (e.g., maths) and Password, then click "Login as Teacher."';
+            } else if (query.includes('add a question')) {
+                return 'As a teacher, after logging in, go to your dashboard and click "Add New Question." Fill in the question text, options, select the correct answer, choose a semester, and click "Add Question."';
+            } else if (query.includes('take a quiz')) {
+                return 'As a student, after logging in, you will see a list of available subjects. Click on a subject card, then click "Start Quiz" to begin.';
+            } else if (query.includes('view results')) {
+                if (currentUserRole === 'student') {
+                    return 'After completing a quiz, your results will be displayed. You can also view your past attempts from the student dashboard, though this feature is not yet fully implemented for historical viewing.';
+                } else if (currentUserRole === 'teacher') {
+                    return 'As a teacher, click "View Student Results" on your dashboard to see scores for your subject.';
+                } else {
+                    return 'Results are available after taking a quiz (for students) or through the teacher dashboard (for teachers).';
+                }
+            } else if (query.includes('what are the available subjects')) {
+                const subjects = Object.values(users)
+                                    .filter(u => u.role === 'teacher' && u.subjectName)
+                                    .map(u => u.subjectName.charAt(0).toUpperCase() + u.subjectName.slice(1))
+                                    .join(', ');
+                return subjects ? `Available subjects include: ${subjects}.` : 'No subjects are available yet.';
+            } else if (query.includes('logout')) {
+                return 'To log out, click the "Logout" button in the top right corner of the header.';
+            } else if (query.includes('features')) {
+                return 'QuizMaster Pro allows students to take quizzes and view results, and teachers to add questions and monitor student performance. We also have this helpful chat assistant!';
+            } else if (query.includes('thank you') || query.includes('thanks')) {
+                return 'You\'re welcome! Let me know if you need anything else.';
+            } else {
+                return 'I am sorry, I can only answer questions related to the usage of QuizMaster Pro application. Please ask something specific about how to use the app.';
+            }
+        }
+
+        // --- Initialize Application on Load ---
+        document.addEventListener('DOMContentLoaded', () => {
+            initializeAppData();
+            showView(roleSelectionView);
+            messageModalCloseBtn.addEventListener('click', hideMessageModal);
+            // Initial check for login buttons on page load if inputs have autofilled
+            checkStudentLoginInputs();
+            checkTeacherLoginInputs();
+        });
+    </script>
+</body>
+</html>
